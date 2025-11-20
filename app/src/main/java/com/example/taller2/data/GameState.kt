@@ -1,32 +1,31 @@
 package com.example.taller2.data
 
-import com.example.taller2.models.Message // 👈 Added this import for chat messages
+import com.example.taller2.models.Message // 👈 AÑADO ESTA LÍNEA
 import com.google.firebase.database.IgnoreExtraProperties
 
 @IgnoreExtraProperties
 data class GameState(
-
-    // Map of player UID to their username
+    // Mapa del UID del jugador a su nombre de usuario
     val players: Map<String, String> = emptyMap(),
 
-    // Map of player UID to their assigned secret emoji
+    // Mapa del UID del jugador a su emoji secreto
     val playerEmojis: Map<String, String> = emptyMap(),
 
-    // List of UIDs representing players who have been eliminated
+    // Lista de los UIDs de los jugadores eliminados
     val eliminatedPlayers: List<String> = emptyList(),
 
-    // UID of the player whose turn it currently is
+    // UID del jugador cuyo turno es
     val currentPlayer: String = "",
 
-    // List of chat messages exchanged during the game
+    // Mensajes del chat
     val chatMessages: List<Message> = emptyList(),
 
-    // Indicates whether the game has been won
+    // Indica si el juego ha terminado
     val isGameWon: Boolean = false,
 
-    // UID of the player who won the game
+    // UID del ganador
     val winningPlayer: String = "",
 
-    // Timestamp marking when the current round ends
+    // Timestamp de cuándo termina la ronda actual
     val roundEndTime: Long = 0L
 )

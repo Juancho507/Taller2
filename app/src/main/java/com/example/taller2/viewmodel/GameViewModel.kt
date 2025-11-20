@@ -1,20 +1,23 @@
 package com.example.taller2.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.taller2.data.FirebaseService
 import com.example.taller2.models.GameRoom
 import com.example.taller2.models.Message
 import com.example.taller2.models.Player
-import com.example.taller2.models.GameLogic
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class GameViewModel : ViewModel() {
+// --- CONSTRUCTOR MODIFICADO ---
+class GameViewModel(
+    private val firebaseService: FirebaseService,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
-    private val firebaseService = FirebaseService()
-    private val auth = FirebaseAuth.getInstance()
+    // Ya no creamos las instancias aquí
 
     private val _gameRoom = MutableStateFlow<GameRoom?>(null)
     val gameRoom: StateFlow<GameRoom?> = _gameRoom.asStateFlow()
@@ -22,145 +25,132 @@ class GameViewModel : ViewModel() {
     private val _gameId = MutableStateFlow<String?>(null)
     val gameId: StateFlow<String?> = _gameId.asStateFlow()
 
-    // --------------------------------------------------------------------
-    // Create a new game
-    // --------------------------------------------------------------------
+    private val _joinRoomError = MutableStateFlow<String?>(null)
+    val joinRoomError: StateFlow<String?> = _joinRoomError.asStateFlow()
 
     fun createGame() {
+        _joinRoomError.value = null
         val newGameId = (1000..9999).random().toString()
         _gameId.value = newGameId
 
-        val hostPlayer = Player(
-            uid = auth.currentUser?.uid ?: "",
+        val hostPlayer = Player().apply {
+            uid = auth.currentUser?.uid ?: ""
             name = auth.currentUser?.displayName ?: "Anónimo"
-        )
-
-        val initialGameRoom = GameRoom(
-            roomId = newGameId,
-            players = mapOf(hostPlayer.uid to hostPlayer)
-        )
+        }
+        val initialGameRoom = GameRoom().apply {
+            roomId = newGameId
+            players[hostPlayer.uid] = hostPlayer
+        }
 
         firebaseService.createGameRoom(initialGameRoom)
-        joinAndListenToGame(newGameId)
+        listenToGame(newGameId)
     }
-
-    // --------------------------------------------------------------------
-    // Join an existing game
-    // --------------------------------------------------------------------
 
     fun joinGame(gameId: String) {
-        val newPlayer = Player(
-            uid = auth.currentUser?.uid ?: "",
-            name = auth.currentUser?.displayName ?: "Anónimo"
-        )
-
+        _joinRoomError.value = null
         viewModelScope.launch {
-            joinAndListenToGame(gameId)
-
-            // Wait for the current room
-            val room = _gameRoom.filterNotNull().first()
-
-            // Add the player using copy()
-            val updatedRoom = room.copy(
-                players = room.players + (newPlayer.uid to newPlayer)
-            )
-
-            firebaseService.updateGameRoom(updatedRoom)
-        }
-    }
-
-    // --------------------------------------------------------------------
-    // Listen for changes in Firebase
-    // --------------------------------------------------------------------
-
-    private fun joinAndListenToGame(gameId: String) {
-        _gameId.value = gameId
-        viewModelScope.launch {
-            firebaseService.listenToGameRoom(gameId).collect {
-                _gameRoom.value = it
+            val player = Player().apply {
+                uid = auth.currentUser?.uid ?: ""
+                name = auth.currentUser?.displayName ?: "Anónimo"
+            }
+            val success = firebaseService.joinGameAtomically(gameId, player)
+            if (success) {
+                listenToGame(gameId)
+            } else {
+                _joinRoomError.value = "No se pudo unir a la sala. Puede que no exista o que la partida ya haya comenzado."
             }
         }
     }
 
-    // --------------------------------------------------------------------
-    // Leave the game
-    // --------------------------------------------------------------------
+    private fun listenToGame(gameId: String) {
+        _gameId.value = gameId
+        viewModelScope.launch {
+            firebaseService.listenToGameRoom(gameId).collect { _gameRoom.value = it }
+        }
+    }
 
     fun leaveGame() {
-        val room = _gameRoom.value ?: return
-        val playerId = auth.currentUser?.uid ?: return
-
-        val updatedRoom = room.copy(
-            players = room.players - playerId
-        )
-
-        firebaseService.updateGameRoom(updatedRoom)
+        viewModelScope.launch {
+            val gameId = _gameId.value ?: return@launch
+            val playerId = auth.currentUser?.uid ?: return@launch
+            firebaseService.leaveGameAtomically(gameId, playerId)
+        }
     }
-
-    // --------------------------------------------------------------------
-    // Start the game
-    // --------------------------------------------------------------------
 
     fun startGame() {
-        val room = _gameRoom.value ?: return
-
-        val updatedRoom = GameLogic.startRound(room)
-            .copy(isGameStarted = true)
-
-        firebaseService.updateGameRoom(updatedRoom)
+        viewModelScope.launch {
+            val gameId = _gameId.value ?: return@launch
+            firebaseService.startGameAtomically(gameId)
+        }
     }
 
-    // --------------------------------------------------------------------
-    // Submit a guess (emoji)
-    // --------------------------------------------------------------------
-
-    fun submitGuess(guess: String) {
+    fun submitGuess(guessedEmoji: String) {
         val room = _gameRoom.value ?: return
         val playerId = auth.currentUser?.uid ?: return
+        val player = room.players[playerId] ?: return
 
-        val updatedRoom = GameLogic.checkGuess(room, playerId, guess)
-
-        firebaseService.updateGameRoom(updatedRoom)
+        if (player.emoji != guessedEmoji) {
+            eliminatePlayer(room, playerId)
+        } else {
+            moveToNextPlayer(room)
+        }
     }
 
-    // --------------------------------------------------------------------
-    // Chat within the game room
-    // --------------------------------------------------------------------
+    fun handleTimeout() {
+        val room = _gameRoom.value ?: return
+        if (room.currentPlayerId == auth.currentUser?.uid && System.currentTimeMillis() >= room.roundEndTime) {
+            room.currentPlayerId?.let { timedOutPlayerId ->
+                eliminatePlayer(room, timedOutPlayerId)
+            }
+        }
+    }
+
+    private fun moveToNextPlayer(currentRoom: GameRoom) {
+        val activePlayers = currentRoom.players.values.filter { !it.isEliminated }.sortedBy { it.name }
+        if (activePlayers.isEmpty()) return
+
+        val currentIndex = activePlayers.indexOfFirst { it.uid == currentRoom.currentPlayerId }
+        val nextIndex = (currentIndex + 1) % activePlayers.size
+        currentRoom.currentPlayerId = activePlayers.getOrNull(nextIndex)?.uid
+        currentRoom.roundEndTime = System.currentTimeMillis() + 30000
+
+        firebaseService.updateGameRoom(currentRoom)
+    }
+
+    private fun eliminatePlayer(currentRoom: GameRoom, playerId: String) {
+        currentRoom.players[playerId]?.isEliminated = true
+
+        val activePlayers = currentRoom.players.values.filter { !it.isEliminated }
+        if (activePlayers.size <= 1) {
+            currentRoom.winnerId = activePlayers.firstOrNull()?.uid
+            currentRoom.isGameStarted = false
+        } else if (currentRoom.currentPlayerId == playerId) {
+            moveToNextPlayer(currentRoom)
+        }
+
+        firebaseService.updateGameRoom(currentRoom)
+    }
 
     fun sendChatMessage(content: String) {
         val room = _gameRoom.value ?: return
-
-        val message = Message(
-            author = auth.currentUser?.displayName ?: "Anónimo",
-            content = content,
+        val message = Message().apply {
+            author = auth.currentUser?.displayName ?: "Anónimo"
+            this.content = content
             timestamp = System.currentTimeMillis()
-        )
-
-        val updatedRoom = room.copy(
-            chat = room.chat + message
-        )
-
-        firebaseService.updateGameRoom(updatedRoom)
-    }
-
-    // --------------------------------------------------------------------
-    // End the current round
-    // --------------------------------------------------------------------
-
-    fun endRound() {
-        val room = _gameRoom.value ?: return
-
-        val afterElimination = GameLogic.finishRound(room)
-
-        // If there is already a winner:
-        if (afterElimination.winnerId != null) {
-            firebaseService.updateGameRoom(afterElimination)
-            return
         }
+        room.chat = room.chat + message
+        firebaseService.updateGameRoom(room)
+    }
+}
 
-        // If multiple players remain: start the next round
-        val nextRound = GameLogic.startRound(afterElimination)
-
-        firebaseService.updateGameRoom(nextRound)
+// --- FÁBRICA DE VIEWMODEL ---
+// Le dice a la UI cómo crear un GameViewModel con sus dependencias.
+class GameViewModelFactory : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GameViewModel::class.java)) {
+            return GameViewModel(FirebaseService(), FirebaseAuth.getInstance()) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

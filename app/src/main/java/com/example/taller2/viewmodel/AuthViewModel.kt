@@ -8,20 +8,20 @@ import kotlinx.coroutines.flow.StateFlow
 
 class AuthViewModel : ViewModel() {
 
-    // Firebase authentication instance
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    // StateFlow to track authentication state
     private val _authState = MutableStateFlow<AuthState>(AuthState.SignedOut)
     val authState: StateFlow<AuthState> = _authState
 
-    // Function to register a new user
+    /**
+     * Registra un nuevo usuario y guarda su nombre de usuario.
+     */
     fun register(email: String, password: String, displayName: String) {
         _authState.value = AuthState.Loading
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // Update user profile with display name
+                    // Guarda el nombre de usuario en el perfil de Firebase
                     val user = task.result?.user
                     val profileUpdates = UserProfileChangeRequest.Builder()
                         .setDisplayName(displayName)
@@ -30,13 +30,14 @@ class AuthViewModel : ViewModel() {
                         _authState.value = AuthState.SignedIn
                     }
                 } else {
-                    // If registration fails, set error state with message
                     _authState.value = AuthState.Error(task.exception?.message ?: "Error de registro desconocido")
                 }
             }
     }
 
-    // Function to log in an existing user
+    /**
+     * Inicia sesión con correo y contraseña.
+     */
     fun login(email: String, password: String) {
         _authState.value = AuthState.Loading
         auth.signInWithEmailAndPassword(email, password)
@@ -44,20 +45,20 @@ class AuthViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     _authState.value = AuthState.SignedIn
                 } else {
-                    // If login fails, set error state with message
                     _authState.value = AuthState.Error(task.exception?.message ?: "Error de inicio de sesión desconocido")
                 }
             }
     }
 
-    // Function to sign out the current user
+    /**
+     * Cierra la sesión del usuario actual.
+     */
     fun signOut() {
         auth.signOut()
         _authState.value = AuthState.SignedOut
     }
 }
 
-// Sealed interface representing the authentication states
 sealed interface AuthState {
     object SignedIn : AuthState
     object SignedOut : AuthState
