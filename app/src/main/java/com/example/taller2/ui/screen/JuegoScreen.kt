@@ -26,15 +26,19 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun JuegoScreen(
-    gameViewModel: GameViewModel = viewModel(),
-    onVolverInicio: () -> Unit
+    gameViewModel: GameViewModel = viewModel(), // Main ViewModel that manages the game state
+    onVolverInicio: () -> Unit                 // Callback to exit the match
 ) {
+    // Observes the GameRoom object from the ViewModel
     val gameRoom by gameViewModel.gameRoom.collectAsState()
+
+    // Gets the current player's UID
     val myUid = FirebaseAuth.getInstance().currentUser?.uid
 
+    // State for countdown timer UI
     var timeLeft by remember { mutableStateOf(30) }
 
-
+    // ⏳ Coroutine that updates the timer until the round ends
     LaunchedEffect(gameRoom?.roundEndTime) {
         gameRoom?.let {
             while (System.currentTimeMillis() < it.roundEndTime) {
@@ -46,8 +50,12 @@ fun JuegoScreen(
         }
     }
 
-    val gradient = Brush.verticalGradient(colors = listOf(Color(0xFF2193b0), Color(0xFF6dd5ed)))
+    // Background gradient for the game screen
+    val gradient = Brush.verticalGradient(
+        colors = listOf(Color(0xFF2193b0), Color(0xFF6dd5ed))
+    )
 
+    // Main column layout of the game screen
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,24 +64,28 @@ fun JuegoScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         GameStatusHeader(gameRoom = gameRoom, timeLeft = timeLeft)
+
         Spacer(modifier = Modifier.height(16.dp))
 
         PlayerList(gameRoom = gameRoom, myUid = myUid)
+
         Spacer(modifier = Modifier.height(16.dp))
 
         EmojiGuessingGrid(gameViewModel = gameViewModel)
 
         Spacer(modifier = Modifier.weight(1f))
+
+        // Button to exit the match
         Button(onClick = onVolverInicio) {
             Text("Salir de la Partida")
         }
     }
 }
 
-
-
 @Composable
 private fun GameStatusHeader(gameRoom: GameRoom?, timeLeft: Int) {
+
+    // Shows either winner or current round number
     val statusText = when {
         gameRoom?.winnerId != null ->
             "🏆 Ganador: ${gameRoom.players[gameRoom.winnerId]?.name}"
@@ -87,6 +99,7 @@ private fun GameStatusHeader(gameRoom: GameRoom?, timeLeft: Int) {
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Shows round or winner
         Text(
             text = statusText,
             fontSize = 18.sp,
@@ -94,6 +107,7 @@ private fun GameStatusHeader(gameRoom: GameRoom?, timeLeft: Int) {
             color = Color.White
         )
 
+        // Shows the countdown timer
         Text(
             text = "⏰ $timeLeft s",
             fontSize = 20.sp,
@@ -105,9 +119,14 @@ private fun GameStatusHeader(gameRoom: GameRoom?, timeLeft: Int) {
 
 @Composable
 private fun PlayerList(gameRoom: GameRoom?, myUid: String?) {
+
+    // Iterates through all players in the room
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         gameRoom?.players?.values?.forEach { player ->
+
+            // Players see only a "❓" for their own emoji
             val emoji = if (player.uid == myUid) "❓" else player.emoji
+
             PlayerRow(
                 name = player.name,
                 emoji = emoji,
@@ -119,6 +138,8 @@ private fun PlayerList(gameRoom: GameRoom?, myUid: String?) {
 
 @Composable
 private fun PlayerRow(name: String, emoji: String, isEliminated: Boolean) {
+
+    // Eliminated players appear greyed out
     val backgroundColor =
         if (isEliminated) Color.Gray.copy(alpha = 0.5f)
         else Color.White.copy(alpha = 0.3f)
@@ -131,7 +152,15 @@ private fun PlayerRow(name: String, emoji: String, isEliminated: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        // Player name
+        Text(
+            name,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
+
+        // Emoji or placeholder
         Text(emoji, fontSize = 24.sp)
     }
 }
@@ -139,6 +168,7 @@ private fun PlayerRow(name: String, emoji: String, isEliminated: Boolean) {
 @Composable
 private fun EmojiGuessingGrid(gameViewModel: GameViewModel) {
 
+    // List of selectable emojis from GameLogic
     val availableEmojis = com.example.taller2.models.GameLogic.EMOJIS
 
     Text(
@@ -148,6 +178,7 @@ private fun EmojiGuessingGrid(gameViewModel: GameViewModel) {
         fontWeight = FontWeight.SemiBold
     )
 
+    // Grid of emojis for guessing
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 60.dp),
         modifier = Modifier.padding(top = 8.dp)
@@ -159,7 +190,10 @@ private fun EmojiGuessingGrid(gameViewModel: GameViewModel) {
                     .size(60.dp)
                     .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                     .border(1.dp, Color.White, RoundedCornerShape(8.dp))
-                    .clickable { gameViewModel.submitGuess(emoji) },
+                    .clickable {
+                        // Sends the guessed emoji to the ViewModel
+                        gameViewModel.submitGuess(emoji)
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(emoji, fontSize = 30.sp)

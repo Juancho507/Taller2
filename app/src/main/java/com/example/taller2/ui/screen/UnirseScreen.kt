@@ -22,15 +22,18 @@ fun UnirseScreen(
     onVolverInicio: () -> Unit,
     gameViewModel: GameViewModel = viewModel()
 ) {
+    // Green gradient background
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF3FF348), Color(0xFFA0F59C))
     )
 
     var codigoSala by remember { mutableStateOf("") }
     var creandoSala by remember { mutableStateOf(false) }
+
+    // Observes the current gameId from the ViewModel
     val gameId by gameViewModel.gameId.collectAsState()
 
-    // Navega a la sala cuando el gameId cambia
+    // Navigates to the room when gameId changes
     LaunchedEffect(gameId) {
         gameId?.let { onUnirseExitoso(it) }
     }
@@ -53,6 +56,8 @@ fun UnirseScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+
+                // Title changes depending on create/join mode
                 Text(
                     if (creandoSala) "Crear Nueva Sala 🎮" else "Unirse a una Sala 🔑",
                     fontWeight = FontWeight.Bold,
@@ -61,6 +66,7 @@ fun UnirseScreen(
                     color = Color(0xFF2d3436)
                 )
 
+                // Only show the text field when joining a room
                 if (!creandoSala) {
                     OutlinedTextField(
                         value = codigoSala,
@@ -70,6 +76,7 @@ fun UnirseScreen(
                     )
                 }
 
+                // Button to create or join a room
                 Button(
                     onClick = {
                         if (creandoSala) {
@@ -92,6 +99,7 @@ fun UnirseScreen(
                     )
                 }
 
+                // Switch between join/create mode
                 TextButton(onClick = { creandoSala = !creandoSala }) {
                     Text(
                         if (creandoSala) "🔑 Ya tengo una sala" else "➕ Crear nueva sala",
@@ -99,6 +107,7 @@ fun UnirseScreen(
                     )
                 }
 
+                // Button to return to the home screen
                 TextButton(onClick = { onVolverInicio() }) {
                     Text("⬅ Volver al inicio", color = Color(0xFFd63031))
                 }

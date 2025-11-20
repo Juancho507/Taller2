@@ -29,20 +29,26 @@ fun SalaScreen(
     onVolverInicio: () -> Unit,
     gameViewModel: GameViewModel = viewModel()
 ) {
+    // Join the game room when this screen is opened
     LaunchedEffect(gameId) {
         gameViewModel.joinGame(gameId)
     }
 
+    // Leave the game when the screen is removed from the composition
     DisposableEffect(Unit) {
         onDispose {
             gameViewModel.leaveGame()
         }
     }
 
+    // Observe the game room state from the ViewModel
     val gameRoom by gameViewModel.gameRoom.collectAsState()
+
+    // Convert the HashMap of players to a list (or empty list if null)
     val players = gameRoom?.players?.values?.toList() ?: emptyList()
 
-
+    // --- REACTIVE NAVIGATION ---
+    // Navigate to the game screen as soon as the game starts
     LaunchedEffect(gameRoom?.isGameStarted) {
         if (gameRoom?.isGameStarted == true) {
             onJugarClick()
@@ -55,6 +61,7 @@ fun SalaScreen(
             .background(Color(0xFFE3F2FD)),
         contentAlignment = Alignment.Center
     ) {
+        // Main card containing the lobby UI
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -69,13 +76,32 @@ fun SalaScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Sala de Juego", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                // Title and Room Code
+                Text(
+                    "Sala de Juego",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1565C0)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Código: $gameId", fontSize = 18.sp, color = Color(0xFF0D47A1))
+                Text(
+                    "Código: $gameId",
+                    fontSize = 18.sp,
+                    color = Color(0xFF0D47A1)
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Jugadores conectados", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1976D2))
+
+                // Players section label
+                Text(
+                    "Jugadores conectados",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1976D2)
+                )
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // List of connected players
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -84,25 +110,30 @@ fun SalaScreen(
                         .padding(8.dp)
                 ) {
                     items(players) { player: Player ->
-                        Text("🎮 ${player.name}", fontSize = 18.sp, color = Color(0xFF1E88E5), modifier = Modifier.padding(vertical = 4.dp))
+                        Text(
+                            "🎮 ${player.name}",
+                            fontSize = 18.sp,
+                            color = Color(0xFF1E88E5),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-
+                // This button triggers the game start — it does NOT navigate
                 Button(
                     onClick = { gameViewModel.startGame() },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
                     modifier = Modifier.fillMaxWidth(0.7f),
-
-                    enabled = players.size > 1
+                    enabled = players.size > 1 // Disable if fewer than 2 players
                 ) {
                     Text("Comenzar Juego", fontSize = 18.sp, color = Color.White)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Button to return to home screen
                 OutlinedButton(
                     onClick = { onVolverInicio() },
                     modifier = Modifier.fillMaxWidth(0.7f),

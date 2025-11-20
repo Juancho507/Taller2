@@ -16,23 +16,29 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun InicioScreen(
-    onRegistroClick: () -> Unit,
-    onLoginClick: () -> Unit
+    onRegistroClick: () -> Unit, // Callback triggered when the "Register" button is clicked
+    onLoginClick: () -> Unit     // Callback triggered when the "Login" button is clicked
 ) {
+
+    // Main container that fills the screen and displays a vertical gradient background
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF636BFA), Color(0xFFC4D0FA))
+                    colors = listOf(Color(0xFF636BFA), Color(0xFFC4D0FA)) // Blue-to-light gradient
                 )
             ),
         contentAlignment = Alignment.Center
     ) {
+
+        // Column that centers all the content vertically
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(30.dp)
+            verticalArrangement = Arrangement.spacedBy(30.dp) // Spacing between items
         ) {
+
+            // App title
             Text(
                 text = "Emoji Guess",
                 fontSize = 36.sp,
@@ -40,6 +46,7 @@ fun InicioScreen(
                 color = Color.White
             )
 
+            // "Register" button
             Button(
                 onClick = onRegistroClick,
                 colors = ButtonDefaults.buttonColors(
@@ -50,9 +57,14 @@ fun InicioScreen(
                     .fillMaxWidth(0.7f)
                     .height(55.dp)
             ) {
-                Text(text = "Registrarse", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Registrarse",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
+            // "Login" button
             Button(
                 onClick = onLoginClick,
                 colors = ButtonDefaults.buttonColors(
@@ -63,7 +75,11 @@ fun InicioScreen(
                     .fillMaxWidth(0.7f)
                     .height(55.dp)
             ) {
-                Text(text = "Iniciar Sesión", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Iniciar Sesión",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

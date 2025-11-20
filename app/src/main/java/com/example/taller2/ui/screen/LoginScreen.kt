@@ -23,25 +23,37 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onVolverInicio: () -> Unit
 ) {
+    // Collect authentication state from the ViewModel
     val authState by authViewModel.authState.collectAsState()
+
+    // Local state to store the email and password entered by the user
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    // Local state for showing error messages
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // React to authentication state changes (success or error)
     LaunchedEffect(authState) {
         when (val state = authState) {
-            is AuthState.SignedIn -> onLoginSuccess()
-            is AuthState.Error -> errorMessage = state.message
+            is AuthState.SignedIn -> onLoginSuccess() // Navigate on successful login
+            is AuthState.Error -> errorMessage = state.message // Display the error message
             else -> errorMessage = null
         }
     }
 
+    // Main container with a vertical gradient background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(colors = listOf(Color(0xFF1174CB), Color(0xFFC4D0FA)))),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1174CB), Color(0xFFC4D0FA))
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
+        // Card for the login form UI
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
@@ -54,13 +66,22 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Iniciar Sesión", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                // Title text
+                Text(
+                    "Iniciar Sesión",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Email field
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Correo electrónico") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Password field with hidden characters
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -69,21 +90,27 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Show loading indicator while signing in
                 if (authState is AuthState.Loading) {
                     CircularProgressIndicator()
                 } else {
+                    // Login button
                     Button(
                         onClick = { authViewModel.login(email, password) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
                     ) {
                         Text("Entrar", fontSize = 18.sp)
                     }
                 }
 
+                // Display error messages if any
                 errorMessage?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
 
+                // Back to home button
                 TextButton(onClick = onVolverInicio) {
                     Text("Volver al inicio")
                 }

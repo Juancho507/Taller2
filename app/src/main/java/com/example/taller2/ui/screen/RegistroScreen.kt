@@ -24,20 +24,27 @@ fun RegistroScreen(
     onRegistroExitoso: () -> Unit,
     onVolverInicio: () -> Unit
 ) {
+    // Collect authentication state from ViewModel
     val authState by authViewModel.authState.collectAsState()
+
+    // Local state for user inputs
     var nombre by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var contrasena by remember { mutableStateOf("") }
+
+    // Error message state
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // React to authentication state changes
     LaunchedEffect(authState) {
         when (val state = authState) {
-            is AuthState.SignedIn -> onRegistroExitoso()
-            is AuthState.Error -> errorMessage = state.message
+            is AuthState.SignedIn -> onRegistroExitoso() // Navigate when registration completes successfully
+            is AuthState.Error -> errorMessage = state.message // Show error message
             else -> errorMessage = null
         }
     }
 
+    // Background gradient for the screen
     val gradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFAC43D), Color(0xFFFFED64))
     )
@@ -48,6 +55,7 @@ fun RegistroScreen(
             .background(gradient),
         contentAlignment = Alignment.Center
     ) {
+        // Main card for form UI
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
@@ -60,6 +68,7 @@ fun RegistroScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Title text
                 Text(
                     "Crear Cuenta",
                     fontWeight = FontWeight.Bold,
@@ -68,6 +77,7 @@ fun RegistroScreen(
                     color = Color(0xFFFFC107)
                 )
 
+                // Username input field
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
@@ -75,6 +85,7 @@ fun RegistroScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Email input field
                 OutlinedTextField(
                     value = correo,
                     onValueChange = { correo = it },
@@ -82,6 +93,7 @@ fun RegistroScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Password input field
                 OutlinedTextField(
                     value = contrasena,
                     onValueChange = { contrasena = it },
@@ -90,11 +102,14 @@ fun RegistroScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                // Loading indicator while registering
                 if (authState is AuthState.Loading) {
                     CircularProgressIndicator()
                 } else {
+                    // Register button
                     Button(
                         onClick = {
+                            // Validate input before sending registration request
                             if (nombre.isNotBlank() && correo.isNotBlank() && contrasena.isNotBlank()) {
                                 authViewModel.register(correo, contrasena, nombre)
                             }
@@ -104,14 +119,24 @@ fun RegistroScreen(
                             .height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107))
                     ) {
-                        Text("Registrar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Registrar",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
+                // Display error messages from ViewModel
                 errorMessage?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
                 }
 
+                // Return to home screen button
                 TextButton(onClick = { onVolverInicio() }) {
                     Text("⬅ Volver al inicio", color = Color(0xFFFF5722))
                 }
